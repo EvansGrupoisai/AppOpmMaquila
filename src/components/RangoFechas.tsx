@@ -1,7 +1,8 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useEsquema } from '../logic/tema';
 import { SPACE } from '../theme/tokens';
 import { claveDe, deClave, fechaHora } from '../utils/format';
 import { useTheme } from './ui';
@@ -44,7 +45,7 @@ export function RangoFechas({
   onCambio: (inicio: string, fin: string) => void;
 }) {
   const t = useTheme();
-  const esquema = useColorScheme();
+  const esquema = useEsquema();
   const [borrador, setBorrador] = useState<Rango>({ inicio, fin });
   // Solo en iOS: el calendario va dentro del control; en Android es un diálogo del sistema
   const [abierto, setAbierto] = useState<Campo | null>(null);

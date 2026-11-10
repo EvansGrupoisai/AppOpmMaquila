@@ -8,15 +8,15 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from 'react-native';
 
+import { useEsquema } from '../logic/tema';
 import { MONO, SPACE, getTokens } from '../theme/tokens';
 import { ErrorCaptura, capturarYCompartir, esperarPintado, nombreArchivo } from '../utils/compartir';
 import { fmtPct } from '../utils/format';
 
 export function useTheme() {
-  return getTokens(useColorScheme());
+  return getTokens(useEsquema());
 }
 
 const mono = Platform.select(MONO);
@@ -29,14 +29,19 @@ type ContextoCaptura = { unidad: string; fecha: string };
 const Captura = createContext<ContextoCaptura>({ unidad: '', fecha: '' });
 export const ProveedorCaptura = Captura.Provider;
 
+/** Verdadero dentro de un Bloque destacado: las cifras se pintan claras sobre fondo oscuro */
+const EnDestacado = createContext(false);
+
 /* ======================================================================
-   Bloque: tarjeta con franja de color, título y botón de compartir
+   Bloque: tarjeta con título y botón de compartir
    ====================================================================== */
 
 type BloqueProps = {
   titulo: string;
-  /** Color de la franja superior y del título */
+  /** Ya no pinta la tarjeta (un solo acento en toda la app); se conserva por compatibilidad */
   tono?: string;
+  /** Tarjeta oscura para la cifra principal de la pantalla */
+  destacado?: boolean;
   nota?: string;
   children: React.ReactNode;
   /** Controles a la derecha del título (por ejemplo, "Ver todos") */
@@ -50,7 +55,7 @@ type BloqueProps = {
 
 export function Bloque({
   titulo,
-  tono,
+  destacado,
   nota,
   children,
   accion,
@@ -62,7 +67,10 @@ export function Bloque({
   const ctx = useContext(Captura);
   const ref = useRef<React.ComponentRef<typeof View> | null>(null);
   const [capturando, setCapturando] = useState(false);
-  const color = tono || t.accent;
+  const fondo = destacado ? t.hero : t.surface;
+  const texto = destacado ? t.onHero : t.ink;
+  const suave = destacado ? t.onHero : t.muted;
+  const enlace = destacado ? t.onHero : t.accent;
   // En el navegador no hay hoja de compartir del sistema ni captura del árbol de vistas
   const puedeCompartir = compartible && Platform.OS !== 'web';
 
@@ -82,45 +90,40 @@ export function Bloque({
   }
 
   return (
-    <View
-      ref={ref}
-      collapsable={false}
-      style={[s.bloque, { backgroundColor: t.surface, borderColor: t.border }]}
-    >
-      <View style={[s.franja, { backgroundColor: color }]} />
-      <View style={s.bloqueInterior}>
-        {capturando ? (
-          <View style={[s.capCab, { borderBottomColor: t.border }]}>
-            <Text style={[s.capUnidad, { color: t.ink }]}>{ctx.unidad}</Text>
-            <Text style={[s.capFecha, { color: t.muted }]}>{ctx.fecha}</Text>
-          </View>
-        ) : null}
-
-        <View style={s.bloqueCab}>
-          <Text style={[s.bloqueTitulo, { color }]}>{titulo}</Text>
-          {actualizando ? <ActivityIndicator size="small" color={color} /> : null}
-          {!capturando ? accion : null}
-          {puedeCompartir && !capturando ? (
-            <Pressable
-              onPress={compartir}
-              accessibilityRole="button"
-              accessibilityLabel={'Compartir ' + titulo + ' como imagen'}
-              hitSlop={8}
-              style={({ pressed }) => [
-                s.btnCompartir,
-                { borderColor: t.border, backgroundColor: t.surfaceSunk, opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Text style={[s.btnCompartirTexto, { color: t.ink2 }]}>Compartir</Text>
-            </Pressable>
-          ) : null}
+    <View ref={ref} collapsable={false} style={[s.bloque, { backgroundColor: fondo }]}>
+      {capturando ? (
+        <View style={[s.capCab, { borderBottomColor: destacado ? 'rgba(255,255,255,0.18)' : t.border }]}>
+          <Text style={[s.capUnidad, { color: texto }]}>{ctx.unidad}</Text>
+          <Text style={[s.capFecha, { color: suave }]}>{ctx.fecha}</Text>
         </View>
+      ) : null}
 
-        {filtros && !capturando ? <View style={s.filtros}>{filtros}</View> : null}
-        {nota ? <Text style={[s.nota, { color: t.muted }]}>{nota}</Text> : null}
-
-        <View style={[s.bloqueCuerpo, actualizando && { opacity: 0.45 }]}>{children}</View>
+      <View style={s.bloqueCab}>
+        <Text style={[destacado ? s.bloqueTituloDestacado : s.bloqueTitulo, { color: destacado ? suave : texto }]}>
+          {titulo}
+        </Text>
+        {actualizando ? <ActivityIndicator size="small" color={enlace} /> : null}
+        {!capturando ? accion : null}
+        {puedeCompartir && !capturando ? (
+          <Pressable
+            onPress={compartir}
+            accessibilityRole="button"
+            accessibilityLabel={'Compartir ' + titulo + ' como imagen'}
+            hitSlop={10}
+          >
+            {({ pressed }) => (
+              <Text style={[s.btnCompartirTexto, { color: enlace, opacity: pressed ? 0.6 : 1 }]}>Compartir</Text>
+            )}
+          </Pressable>
+        ) : null}
       </View>
+
+      {filtros && !capturando ? <View style={s.filtros}>{filtros}</View> : null}
+      {nota ? <Text style={[s.nota, { color: suave }]}>{nota}</Text> : null}
+
+      <EnDestacado.Provider value={!!destacado}>
+        <View style={[s.bloqueCuerpo, actualizando && { opacity: 0.45 }]}>{children}</View>
+      </EnDestacado.Provider>
     </View>
   );
 }
@@ -145,12 +148,20 @@ export function Cifra({
   alinear?: 'left' | 'center';
 }) {
   const t = useTheme();
-  const fontSize = tamano === 'xl' ? 40 : tamano === 'lg' ? 30 : 23;
+  const destacado = useContext(EnDestacado);
+  const fontSize = tamano === 'xl' ? 38 : tamano === 'lg' ? 30 : 23;
   return (
-    <View style={{ alignItems: alinear === 'center' ? 'center' : 'flex-start', gap: 2 }}>
-      {etiqueta ? <Text style={[s.cifraEtiqueta, { color: t.muted }]}>{etiqueta}</Text> : null}
+    <View style={{ alignItems: alinear === 'center' ? 'center' : 'flex-start', gap: 4 }}>
+      {etiqueta ? (
+        <Text style={[s.cifraEtiqueta, { color: destacado ? t.onHero : t.muted, opacity: destacado ? 0.8 : 1 }]}>
+          {etiqueta}
+        </Text>
+      ) : null}
       <Text
-        style={[s.cifraValor, { color: color || t.ink, fontSize, lineHeight: fontSize * 1.15 }]}
+        style={[
+          s.cifraValor,
+          { color: destacado ? t.onHero : color || t.ink, fontSize, lineHeight: fontSize * 1.15 },
+        ]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.5}
@@ -158,7 +169,11 @@ export function Cifra({
         {valor}
       </Text>
       {pie ? (
-        typeof pie === 'string' ? <Text style={[s.cifraPie, { color: t.ink2 }]}>{pie}</Text> : pie
+        typeof pie === 'string' ? (
+          <Text style={[s.cifraPie, { color: destacado ? t.onHero : t.ink2 }]}>{pie}</Text>
+        ) : (
+          pie
+        )
       ) : null}
     </View>
   );
@@ -187,18 +202,28 @@ export function Tendencia({
   subirEsBueno?: boolean;
 }) {
   const t = useTheme();
+  const destacado = useContext(EnDestacado);
+  // Sobre la tarjeta oscura la píldora es translúcida: la flecha ya dice si subió o bajó
+  const fondoDestacado = 'rgba(255,255,255,0.14)';
   if (valor === null) {
+    const fondo = destacado ? fondoDestacado : t.surfaceSunk;
     return (
-      <View style={[s.pill, { backgroundColor: t.surfaceSunk, borderColor: t.border }]}>
-        <Text style={[s.pillTexto, { color: t.muted }]}>Sin base para comparar</Text>
+      <View style={[s.pill, { backgroundColor: fondo, borderColor: fondo }]}>
+        <Text style={[s.pillTexto, { color: destacado ? t.onHero : t.muted }]}>Sin base para comparar</Text>
       </View>
     );
   }
   const igual = Math.abs(valor) < 0.05;
   const sube = valor > 0;
   const bueno = igual ? null : sube === subirEsBueno;
-  const color = bueno === null ? t.ink2 : bueno ? t.good : t.critical;
-  const fondo = bueno === null ? t.surfaceSunk : bueno ? t.goodSoft : t.criticalSoft;
+  const color = destacado ? t.onHero : bueno === null ? t.ink2 : bueno ? t.good : t.critical;
+  const fondo = destacado
+    ? fondoDestacado
+    : bueno === null
+      ? t.surfaceSunk
+      : bueno
+        ? t.goodSoft
+        : t.criticalSoft;
   const flecha = igual ? '=' : sube ? '▲' : '▼';
   return (
     <View style={[s.pill, { backgroundColor: fondo, borderColor: fondo }]}>
@@ -322,7 +347,7 @@ export function Mosaico({ children }: { children: React.ReactNode }) {
 export function Ficha({ valor, etiqueta, color }: { valor: string; etiqueta: string; color?: string }) {
   const t = useTheme();
   return (
-    <View style={[s.ficha, { backgroundColor: t.surfaceSunk, borderColor: t.border }]}>
+    <View style={[s.ficha, { backgroundColor: t.surfaceSunk }]}>
       <Text style={[s.fichaValor, { color: color || t.ink }]} numberOfLines={1} adjustsFontSizeToFit>
         {valor}
       </Text>
@@ -405,7 +430,8 @@ export function Aviso({ children }: { children: React.ReactNode }) {
 
 export function Vacio({ texto }: { texto: string }) {
   const t = useTheme();
-  return <Text style={[s.vacio, { color: t.muted }]}>{texto}</Text>;
+  const destacado = useContext(EnDestacado);
+  return <Text style={[s.vacio, { color: destacado ? t.onHero : t.muted }]}>{texto}</Text>;
 }
 
 /* ======================================================================
@@ -464,21 +490,18 @@ export function Chip({ texto, activo, onPress }: { texto: string; activo: boolea
       accessibilityState={{ selected: activo }}
       style={({ pressed }) => [
         s.chip,
-        {
-          backgroundColor: activo ? t.accent : t.surface,
-          borderColor: activo ? t.accent : t.border,
-          opacity: pressed ? 0.75 : 1,
-        },
+        activo && s.chipActivo,
+        { backgroundColor: activo ? t.surface : 'transparent', opacity: pressed ? 0.75 : 1 },
       ]}
     >
-      <Text style={[s.chipTexto, { color: activo ? '#ffffff' : t.ink2 }]} numberOfLines={1}>
+      <Text style={[s.chipTexto, { color: activo ? t.ink : t.muted }]} numberOfLines={1}>
         {texto}
       </Text>
     </Pressable>
   );
 }
 
-/** Fila de chips con una sola opción activa */
+/** Control segmentado: riel gris con la opción activa en blanco; se desliza si no cabe */
 export function Selector<T extends string | number>({
   opciones,
   valor,
@@ -488,12 +511,15 @@ export function Selector<T extends string | number>({
   valor: T;
   onCambio: (v: T) => void;
 }) {
+  const t = useTheme();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.selector}>
-      {opciones.map((o) => (
-        <Chip key={String(o.valor)} texto={o.texto} activo={o.valor === valor} onPress={() => onCambio(o.valor)} />
-      ))}
-    </ScrollView>
+    <View style={[s.riel, { backgroundColor: t.track }]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.selector}>
+        {opciones.map((o) => (
+          <Chip key={String(o.valor)} texto={o.texto} activo={o.valor === valor} onPress={() => onCambio(o.valor)} />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -542,42 +568,27 @@ export function Navegador({
 
 const s = StyleSheet.create({
   bloque: {
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: SPACE.lg,
+    borderRadius: 18,
+    marginBottom: 14,
     overflow: 'hidden',
+    padding: 18,
+    gap: 14,
   },
-  franja: { height: 5 },
-  bloqueInterior: { padding: SPACE.lg, gap: SPACE.md },
   bloqueCab: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
-  bloqueTitulo: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-  },
+  bloqueTitulo: { flex: 1, fontSize: 16, fontWeight: '700' },
+  bloqueTituloDestacado: { flex: 1, fontSize: 13, fontWeight: '500', opacity: 0.8 },
   filtros: { gap: SPACE.sm },
   bloqueCuerpo: { gap: SPACE.md },
   nota: { fontSize: 12.5, lineHeight: 18 },
 
-  btnCompartir: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 5,
-    paddingHorizontal: 11,
-    minHeight: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnCompartirTexto: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.3 },
+  btnCompartirTexto: { fontSize: 13, fontWeight: '600' },
 
   capCab: { borderBottomWidth: 1, paddingBottom: SPACE.md, gap: 2 },
   capUnidad: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   capFecha: { fontSize: 12.5 },
 
-  cifraEtiqueta: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.9, textTransform: 'uppercase' },
-  cifraValor: { fontWeight: '900', letterSpacing: -1 },
+  cifraEtiqueta: { fontSize: 13, fontWeight: '500' },
+  cifraValor: { fontWeight: '700', letterSpacing: -1 },
   cifraPie: { fontSize: 14, lineHeight: 20 },
 
   par: { flexDirection: 'row', gap: SPACE.md },
@@ -590,7 +601,7 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 12,
   },
-  pillTexto: { fontSize: 14, fontWeight: '800' },
+  pillTexto: { fontSize: 13, fontWeight: '600' },
 
   titular: { fontWeight: '400' },
 
@@ -617,13 +628,11 @@ const s = StyleSheet.create({
   ficha: {
     flexGrow: 1,
     flexBasis: '30%',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: SPACE.md,
-    paddingHorizontal: SPACE.md,
+    borderRadius: 16,
+    padding: 14,
     gap: 2,
   },
-  fichaValor: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+  fichaValor: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   fichaEtiqueta: { fontSize: 12.5, fontWeight: '600' },
 
   insignia: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' },
@@ -643,7 +652,7 @@ const s = StyleSheet.create({
   vacio: { fontSize: 14, paddingVertical: SPACE.md, textAlign: 'center' },
 
   boton: {
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     paddingVertical: 13,
     paddingHorizontal: SPACE.lg,
@@ -652,9 +661,17 @@ const s = StyleSheet.create({
   botonTexto: { fontSize: 15, fontWeight: '700' },
   enlace: { fontSize: 13, fontWeight: '800' },
 
-  chip: { borderRadius: 16, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 13, maxWidth: 240 },
-  chipTexto: { fontSize: 13, fontWeight: '700' },
-  selector: { gap: SPACE.sm, paddingRight: SPACE.sm },
+  riel: { borderRadius: 12, padding: 4 },
+  chip: { borderRadius: 9, paddingVertical: 8, paddingHorizontal: 14, maxWidth: 240 },
+  chipActivo: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  chipTexto: { fontSize: 13, fontWeight: '600' },
+  selector: { gap: 2, flexGrow: 1 },
 
   nav: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   navFlecha: {

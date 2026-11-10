@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError, SesionExpirada, cargarPreferencias, getSesion, logout, type Sesion } from './src/api/client';
 import { ProveedorSesion } from './src/logic/sesion';
+import { ProveedorTema, useEsquema } from './src/logic/tema';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { MainScreen } from './src/screens/MainScreen';
 import { SinPermisoScreen } from './src/screens/SinPermisoScreen';
@@ -17,7 +18,15 @@ type Estado =
   | { tipo: 'sinPermiso'; sesion: Sesion; mensaje?: string };
 
 export default function App() {
-  const esquema = useColorScheme();
+  return (
+    <ProveedorTema>
+      <Aplicacion />
+    </ProveedorTema>
+  );
+}
+
+function Aplicacion() {
+  const esquema = useEsquema();
   const t = getTokens(esquema);
   const [estado, setEstado] = useState<Estado>({ tipo: 'comprobando' });
 

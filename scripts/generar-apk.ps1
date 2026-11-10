@@ -88,8 +88,7 @@ Set-Location $android
 .\gradlew.bat assembleRelease --no-daemon
 if ($LASTEXITCODE -ne 0) { throw 'La compilación de Gradle falló.' }
 
-$version = (Get-Content (Join-Path $raiz 'app.json') -Raw | ConvertFrom-Json).expo.version
-$salida = Join-Path $raiz "MaquilaIndicadores-v$version.apk"
+$salida = Join-Path $raiz 'AppOpmMaquila.apk'
 Copy-Item (Join-Path $android 'app\build\outputs\apk\release\app-release.apk') $salida -Force
 
 Write-Host ''

@@ -42,7 +42,7 @@ Después, cada vez que se quiera una APK:
 powershell -ExecutionPolicy Bypass -File scripts\generar-apk.ps1
 ```
 
-El resultado es `MaquilaIndicadores-v<versión>.apk` en la raíz del proyecto, firmado y para procesadores ARM. La carpeta `android/` se regenera en cada ejecución desde `app.json`; no la edites a mano.
+El resultado es `AppOpmMaquila.apk` en la raíz del proyecto, firmado y para procesadores ARM. La carpeta `android/` se regenera en cada ejecución desde `app.json`; no la edites a mano.
 
 Para publicar una versión nueva, sube `version` y `android.versionCode` en `app.json` antes de generar la APK.
 

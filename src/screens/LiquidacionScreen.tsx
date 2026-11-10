@@ -86,12 +86,11 @@ function BloquesTemporada({ datos, actualizando }: { datos: Liquidacion; actuali
 
   return (
     <>
-      <Bloque titulo="Kilos liquidados" actualizando={actualizando}>
+      <Bloque titulo="Kilos liquidados en la temporada" destacado actualizando={actualizando}>
         {sinKilos ? (
           <Vacio texto={SIN_DATOS} />
         ) : (
           <Cifra
-            etiqueta="Total temporada"
             valor={kg(total)}
             pie={
               comparada ? (
