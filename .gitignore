@@ -1,0 +1,22 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.orig.*
+# Llave de firma y sus contraseñas: se respaldan aparte, nunca en git
+credenciales/
+*.keystore
+*.apk
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+android/
+ios/
+.expo-verify/
